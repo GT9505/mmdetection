@@ -139,6 +139,7 @@ class DefaultFormatBundle(object):
             else:
                 for i in range(len(results[key])):
                     results[key][i] = self._processing_img(results[key][i])
+                results[key] = np.stack(results[key])
             results[key] = DC(to_tensor(results[key]), stack=True)
         for key in ['proposals', 'gt_bboxes', 'gt_bboxes_ignore', 'gt_labels']:
             if key not in results:
