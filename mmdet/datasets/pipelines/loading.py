@@ -69,6 +69,7 @@ class LoadMultiImagesFromMultiFiles(object):
             filenames = results[imgs_info_key]['filenames']
 
         imgs = [mmcv.imread(name, self.color_type) for name in filenames]
+        imgs = [np.concatenate(imgs, axis=-1)]
         if self.to_float32:
             for i in range(len(imgs)):
                 imgs[i] = imgs[i].astype(np.float32)

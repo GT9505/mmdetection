@@ -135,12 +135,12 @@ class Resize(object):
                     results[key], results['scale'], return_scale=True)
                 results[key] = img
             else:
-                for i in range(len(results[key])):
-                    img, scale_factor = self._resize_img_core(
-                        results[key][i], results['scale'], return_scale=True)
-                    results[key][i] = img
-        results['img_shape'] = img.shape
-        results['pad_shape'] = img.shape  # in case that there is no padding
+                img, scale_factor = self._resize_img_core(
+                    results[key][0], results['scale'], return_scale=True)
+                results[key] = [img]
+        results['img_shape'] = (img.shape[0], img.shape[1], 3)
+        results['pad_shape'] = (img.shape[0], img.shape[1], 3
+                                )  # in case that there is no padding
         results['scale_factor'] = scale_factor
         results['keep_ratio'] = self.keep_ratio
 
@@ -257,10 +257,11 @@ class RandomFlip(object):
                     results[key] = mmcv.imflip(
                         results[key], direction=results['flip_direction'])
                 else:
-                    for i in range(len(results[key])):
-                        results[key][i] = mmcv.imflip(
-                            results[key][i],
+                    results[key] = [
+                        mmcv.imflip(
+                            results[key][0],
                             direction=results['flip_direction'])
+                    ]
             # flip bboxes
             for key in results.get('bbox_fields', []):
                 results[key] = self.bbox_flip(results[key],
@@ -324,10 +325,9 @@ class Pad(object):
                 padded_img = self._pad_img_core(results[key])
                 results[key] = padded_img
             else:
-                for i in range(len(results[key])):
-                    padded_img = self._pad_img_core(results[key][i])
-                    results[key][i] = padded_img
-        results['pad_shape'] = padded_img.shape
+                padded_img = self._pad_img_core(results[key][0])
+                results[key] = [padded_img]
+        results['pad_shape'] = (padded_img.shape[0], padded_img.shape[1], 3)
         results['pad_fixed_size'] = self.size
         results['pad_size_divisor'] = self.size_divisor
 
@@ -382,10 +382,12 @@ class Normalize(object):
                 results[key] = mmcv.imnormalize(results[key], self.mean,
                                                 self.std, self.to_rgb)
             else:
-                for i in range(len(results[key])):
-                    results[key][i] = mmcv.imnormalize(results[key][i],
-                                                       self.mean, self.std,
-                                                       self.to_rgb)
+                for i in range(int(results[key][0].shape[2] / 3)):
+                    results[key][0][:, :,
+                                    i * 3:(i + 1) * 3] = mmcv.imnormalize(
+                                        results[key][0][:, :,
+                                                        i * 3:(i + 1) * 3],
+                                        self.mean, self.std, self.to_rgb)
         results['img_norm_cfg'] = dict(
             mean=self.mean, std=self.std, to_rgb=self.to_rgb)
         return results

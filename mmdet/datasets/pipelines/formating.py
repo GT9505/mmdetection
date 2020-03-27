@@ -63,8 +63,10 @@ class ImageToTensor(object):
             if type(results[key]) is not list:
                 results[key] = self._processing_img(results[key])
             else:
-                for i in range(len(results[key])):
-                    results[key][i] = self._processing_img(results[key][i])
+                results[key] = self._processing_img(results[key][0])
+                results[key] = results[key].reshape(-1, 3,
+                                                    results[key].shape[1],
+                                                    results[key].shape[2])
             results[key] = to_tensor(results[key])
         return results
 
@@ -137,8 +139,10 @@ class DefaultFormatBundle(object):
             if type(results[key]) is not list:
                 results[key] = self._processing_img(results[key])
             else:
-                for i in range(len(results[key])):
-                    results[key][i] = self._processing_img(results[key][i])
+                results[key] = self._processing_img(results[key][0])
+                results[key] = results[key].reshape(-1, 3,
+                                                    results[key].shape[1],
+                                                    results[key].shape[2])
             results[key] = DC(to_tensor(results[key]), stack=True)
         for key in ['proposals', 'gt_bboxes', 'gt_bboxes_ignore', 'gt_labels']:
             if key not in results:
