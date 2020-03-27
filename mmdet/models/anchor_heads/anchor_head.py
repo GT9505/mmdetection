@@ -19,7 +19,7 @@ class AnchorHead(nn.Module):
         num_classes (int): Number of categories including the background
             category.
         in_channels (int): Number of channels in the input feature map.
-        feat_channels (int): Number of channels of the feature map.
+        feat_channels (int): Number of hidden channels. Used in child classes.
         anchor_scales (Iterable): Anchor scales.
         anchor_ratios (Iterable): Anchor aspect ratios.
         anchor_strides (Iterable): Anchor strides.
@@ -47,7 +47,6 @@ class AnchorHead(nn.Module):
                  loss_bbox=dict(
                      type='SmoothL1Loss', beta=1.0 / 9.0, loss_weight=1.0)):
         super(AnchorHead, self).__init__()
-        # NOTE: in_channels is only used in child classes (e.g. RetinaHead)
         self.in_channels = in_channels
         self.num_classes = num_classes
         self.feat_channels = feat_channels
@@ -82,9 +81,9 @@ class AnchorHead(nn.Module):
         self._init_layers()
 
     def _init_layers(self):
-        self.conv_cls = nn.Conv2d(self.feat_channels,
+        self.conv_cls = nn.Conv2d(self.in_channels,
                                   self.num_anchors * self.cls_out_channels, 1)
-        self.conv_reg = nn.Conv2d(self.feat_channels, self.num_anchors * 4, 1)
+        self.conv_reg = nn.Conv2d(self.in_channels, self.num_anchors * 4, 1)
 
     def init_weights(self):
         normal_init(self.conv_cls, std=0.01)
@@ -128,7 +127,7 @@ class AnchorHead(nn.Module):
             for i in range(num_levels):
                 anchor_stride = self.anchor_strides[i]
                 feat_h, feat_w = featmap_sizes[i]
-                h, w, _ = img_meta['pad_shape']
+                h, w = img_meta['pad_shape'][:2]
                 valid_feat_h = min(int(np.ceil(h / anchor_stride)), feat_h)
                 valid_feat_w = min(int(np.ceil(w / anchor_stride)), feat_w)
                 flags = self.anchor_generators[i].valid_flags(
@@ -207,7 +206,11 @@ class AnchorHead(nn.Module):
         return dict(loss_cls=losses_cls, loss_bbox=losses_bbox)
 
     @force_fp32(apply_to=('cls_scores', 'bbox_preds'))
-    def get_bboxes(self, cls_scores, bbox_preds, img_metas, cfg,
+    def get_bboxes(self,
+                   cls_scores,
+                   bbox_preds,
+                   img_metas,
+                   cfg,
                    rescale=False):
         """
         Transform network output for a batch into labeled boxes.
@@ -231,8 +234,7 @@ class AnchorHead(nn.Module):
 
         Example:
             >>> import mmcv
-            >>> self = AnchorHead(num_classes=9, in_channels=1,
-            >>>                   feat_channels=1)
+            >>> self = AnchorHead(num_classes=9, in_channels=1)
             >>> img_metas = [{'img_shape': (32, 32, 3), 'scale_factor': 1}]
             >>> cfg = mmcv.Config(dict(
             >>>     score_thr=0.00,
