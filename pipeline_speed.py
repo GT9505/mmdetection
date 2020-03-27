@@ -1,4 +1,5 @@
 import os.path as osp
+import time
 
 from mmdet.datasets import CocoDataset
 
@@ -15,7 +16,7 @@ class CocoDataset_new(CocoDataset):
         results['img_fields'] = []
 
         filenames = []
-        for i in range(10):
+        for i in range(2):
             filenames.append(results['img_info']['filename'])
         results['ref_imgs_info'] = dict(filenames=filenames)
 
@@ -46,3 +47,10 @@ coco = CocoDataset_new(
     ann,
     train_pipeline,
     img_prefix=osp.join(osp.dirname(__file__), './data/coco/val2017/'))
+
+iters = 10
+t_start = time.time()
+for i in range(iters):
+    _ = coco[i]
+t_end = time.time()
+print((t_end - t_start) / iters)
