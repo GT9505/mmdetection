@@ -15,6 +15,9 @@ class LoadImageFromFile(object):
         self.color_type = color_type
 
     def __call__(self, results):
+        if 'img_info' not in results.keys():
+            return results
+
         if results['img_prefix'] is not None:
             filename = osp.join(results['img_prefix'],
                                 results['img_info']['filename'])
@@ -25,6 +28,7 @@ class LoadImageFromFile(object):
             img = img.astype(np.float32)
         results['filename'] = filename
         results['img'] = img
+        results['img_fields'].append('img')
         results['img_shape'] = img.shape
         results['ori_shape'] = img.shape
         # Set initial values for default meta_keys
@@ -34,6 +38,57 @@ class LoadImageFromFile(object):
         num_channels = 1 if len(img.shape) < 3 else img.shape[2]
         results['img_norm_cfg'] = [[0.0] * num_channels, [1.0] * num_channels,
                                    False]
+        return results
+
+    def __repr__(self):
+        return '{} (to_float32={}, color_type={})'.format(
+            self.__class__.__name__, self.to_float32, self.color_type)
+
+
+@PIPELINES.register_module
+class LoadMultiImagesFromMultiFiles(object):
+
+    def __init__(self, key_prefix='ref', to_float32=False, color_type='color'):
+        self.to_float32 = to_float32
+        self.color_type = color_type
+        self.key_prefix = key_prefix
+
+    def __call__(self, results):
+        imgs_info_key = f'{self.key_prefix}_imgs_info'
+        if imgs_info_key not in results.keys():
+            return results
+        assert type(results[imgs_info_key]
+                    ['filenames']) is list, 'The type must be a list!'
+
+        if results['img_prefix'] is not None:
+            filenames = [
+                osp.join(results['img_prefix'], fname)
+                for fname in results[imgs_info_key]['filenames']
+            ]
+        else:
+            filenames = results[imgs_info_key]['filenames']
+
+        imgs = [mmcv.imread(name, self.color_type) for name in filenames]
+        if self.to_float32:
+            for i in range(len(imgs)):
+                imgs[i] = imgs[i].astype(np.float32)
+
+        filenames_key = f'{self.key_prefix}_filenames'
+        results[filenames_key] = filenames
+        imgs_key = f'{self.key_prefix}_imgs'
+        results[imgs_key] = imgs
+        results['img_fields'].append(imgs_key)
+
+        if 'img' not in results['img_fields']:
+            results['img_shape'] = imgs[0].shape
+            results['ori_shape'] = imgs[0].shape
+            # Set initial values for default meta_keys
+            results['pad_shape'] = imgs[0].shape
+            results['flip'] = False
+            results['scale_factor'] = 1.0
+            num_channels = 1 if len(imgs[0].shape) < 3 else imgs[0].shape[2]
+            results['img_norm_cfg'] = [[0.0] * num_channels,
+                                       [1.0] * num_channels, False]
         return results
 
     def __repr__(self):

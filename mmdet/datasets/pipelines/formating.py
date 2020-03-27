@@ -50,12 +50,22 @@ class ImageToTensor(object):
     def __init__(self, keys):
         self.keys = keys
 
+    def _processing_img(self, img):
+        if len(img.shape) < 3:
+            img = np.expand_dims(img, -1)
+        img = img.transpose(2, 0, 1)
+        return img
+
     def __call__(self, results):
         for key in self.keys:
-            img = results[key]
-            if len(img.shape) < 3:
-                img = np.expand_dims(img, -1)
-            results[key] = to_tensor(img.transpose(2, 0, 1))
+            if key not in results.keys():
+                continue
+            if type(results[key]) is not list:
+                results[key] = self._processing_img(results[key])
+            else:
+                for i in range(len(results[key])):
+                    results[key][i] = self._processing_img(results[key][i])
+            results[key] = to_tensor(results[key])
         return results
 
     def __repr__(self):
@@ -116,13 +126,20 @@ class DefaultFormatBundle(object):
                        (3)to DataContainer (stack=True)
     """
 
+    def _processing_img(self, img):
+        if len(img.shape) < 3:
+            img = np.expand_dims(img, -1)
+        img = np.ascontiguousarray(img.transpose(2, 0, 1))
+        return img
+
     def __call__(self, results):
-        if 'img' in results:
-            img = results['img']
-            if len(img.shape) < 3:
-                img = np.expand_dims(img, -1)
-            img = np.ascontiguousarray(img.transpose(2, 0, 1))
-            results['img'] = DC(to_tensor(img), stack=True)
+        for key in results.get('img_fields', []):
+            if type(results[key]) is not list:
+                results[key] = self._processing_img(results[key])
+            else:
+                for i in range(len(results[key])):
+                    results[key][i] = self._processing_img(results[key][i])
+            results[key] = DC(to_tensor(results[key]), stack=True)
         for key in ['proposals', 'gt_bboxes', 'gt_bboxes_ignore', 'gt_labels']:
             if key not in results:
                 continue
@@ -181,10 +198,12 @@ class Collect(object):
         data = {}
         img_meta = {}
         for key in self.meta_keys:
-            img_meta[key] = results[key]
+            if key in results.keys():
+                img_meta[key] = results[key]
         data['img_metas'] = DC(img_meta, cpu_only=True)
         for key in self.keys:
-            data[key] = results[key]
+            if key in results.keys():
+                data[key] = results[key]
         return data
 
     def __repr__(self):

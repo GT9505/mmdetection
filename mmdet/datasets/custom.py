@@ -97,6 +97,7 @@ class CustomDataset(Dataset):
         results['img_prefix'] = self.img_prefix
         results['seg_prefix'] = self.seg_prefix
         results['proposal_file'] = self.proposal_file
+        results['img_fields'] = []
         results['bbox_fields'] = []
         results['mask_fields'] = []
         results['seg_fields'] = []
